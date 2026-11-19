@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T19:12:46.0466577+05:30",
+  "title": "Design System: AidLocate",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "neutral", "displayName": "Black", "canonical": "#000000", "tonalRamp": ["#000000", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#ffffff"] },
+      "paper": { "role": "neutral", "displayName": "White", "canonical": "#ffffff", "tonalRamp": ["#000000", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#ffffff"] },
+      "surface": { "role": "neutral", "displayName": "White Surface", "canonical": "#ffffff", "tonalRamp": ["#000000", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#ffffff"] },
+      "surface-muted": { "role": "neutral", "displayName": "Light Gray", "canonical": "#f2f2f2", "tonalRamp": ["#000000", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#f2f2f2"] },
+      "text": { "role": "neutral", "displayName": "Text", "canonical": "#111111", "tonalRamp": ["#000000", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#ffffff"] },
+      "muted": { "role": "neutral", "displayName": "Muted Text", "canonical": "#4a4a4a", "tonalRamp": ["#000000", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#ffffff"] },
+      "border": { "role": "neutral", "displayName": "Divider", "canonical": "#cccccc", "tonalRamp": ["#000000", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#ffffff"] },
+      "green": { "role": "primary", "displayName": "AidLocate Green", "canonical": "#147a36", "tonalRamp": ["oklch(25% 0.08 145)", "oklch(35% 0.11 145)", "oklch(45% 0.13 145)", "oklch(55% 0.14 145)", "oklch(65% 0.13 145)", "oklch(75% 0.10 145)", "oklch(85% 0.06 145)", "oklch(95% 0.02 145)"] },
+      "green-dark": { "role": "primary", "displayName": "Deep Green", "canonical": "#0c5f29", "tonalRamp": ["oklch(20% 0.06 145)", "oklch(30% 0.09 145)", "oklch(40% 0.12 145)", "oklch(50% 0.14 145)", "oklch(60% 0.13 145)", "oklch(70% 0.10 145)", "oklch(80% 0.06 145)", "oklch(90% 0.03 145)"] },
+      "green-light": { "role": "primary", "displayName": "Light Green", "canonical": "#a5e3b4", "tonalRamp": ["oklch(25% 0.06 145)", "oklch(35% 0.08 145)", "oklch(45% 0.11 145)", "oklch(55% 0.13 145)", "oklch(65% 0.12 145)", "oklch(75% 0.10 145)", "oklch(85% 0.06 145)", "oklch(95% 0.02 145)"] },
+      "green-soft": { "role": "neutral", "displayName": "Soft Green", "canonical": "#e8f4eb", "tonalRamp": ["oklch(30% 0.04 145)", "oklch(40% 0.05 145)", "oklch(50% 0.06 145)", "oklch(60% 0.06 145)", "oklch(70% 0.05 145)", "oklch(80% 0.04 145)", "oklch(90% 0.03 145)", "oklch(96% 0.01 145)"] },
+      "red": { "role": "danger", "displayName": "Emergency Red", "canonical": "#c62828", "tonalRamp": ["oklch(25% 0.10 25)", "oklch(35% 0.14 25)", "oklch(45% 0.18 25)", "oklch(55% 0.20 25)", "oklch(65% 0.18 25)", "oklch(75% 0.13 25)", "oklch(85% 0.08 25)", "oklch(95% 0.03 25)"] },
+      "red-dark": { "role": "danger", "displayName": "Deep Red", "canonical": "#a61f24", "tonalRamp": ["oklch(20% 0.08 25)", "oklch(30% 0.12 25)", "oklch(40% 0.16 25)", "oklch(50% 0.18 25)", "oklch(60% 0.17 25)", "oklch(70% 0.13 25)", "oklch(80% 0.08 25)", "oklch(90% 0.03 25)"] },
+      "red-soft": { "role": "neutral", "displayName": "Soft Red", "canonical": "#fde8e8", "tonalRamp": ["oklch(30% 0.05 25)", "oklch(40% 0.07 25)", "oklch(50% 0.09 25)", "oklch(60% 0.10 25)", "oklch(70% 0.09 25)", "oklch(80% 0.07 25)", "oklch(90% 0.04 25)", "oklch(97% 0.01 25)"] },
+      "on-dark-muted": { "role": "neutral", "displayName": "Muted On Black", "canonical": "#e6e6e6", "tonalRamp": ["#000000", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#ffffff"] }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Destination Display",
+        "purpose": "Short, high-priority headings and place names."
+      },
+      "body": {
+        "displayName": "Operational Sans",
+        "purpose": "Search, forms, caveats, and supporting location details."
+      },
+      "label": {
+        "displayName": "Board Label",
+        "purpose": "Compact navigation, record IDs, and sample-state labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "map-marker",
+        "value": "0 3px 12px rgba(0, 0, 0, .32)",
+        "purpose": "Separate location markers from variable map imagery."
+      },
+      {
+        "name": "map-legend",
+        "value": "0 2px 9px rgba(0, 0, 0, .15)",
+        "purpose": "Keep the map legend readable above map tiles."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": ".18s ease",
+        "purpose": "Subtle hover and state changes on controls and navigation."
+      },
+      {
+        "name": "map-recenter",
+        "value": "Leaflet flyTo duration 0.8s",
+        "purpose": "Recenter the map after location or result selection."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "760px"
+      },
+      {
+        "name": "compact",
+        "value": "1080px"
+      },
+      {
+        "name": "small",
+        "value": "480px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-contrast action for the next task step.",
+      "html": "<button class=\"ds-button-primary\">Use My Location</button>",
+      "css": ".ds-button-primary { color: var(--surface); background: var(--green); border: 1px solid var(--green); border-radius: 2px; padding: 10px 16px; font: 700 13px/1.15 'IBM Plex Sans', sans-serif; cursor: pointer; transition: background-color .18s ease, transform .18s ease; } .ds-button-primary:hover { background: var(--green-dark); border-color: var(--green-dark); transform: translateY(-1px); } .ds-button-primary:focus-visible { outline: 3px solid var(--green-dark); outline-offset: 3px; } .ds-button-primary:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet alternative action with a clear outline.",
+      "html": "<button class=\"ds-button-secondary\">Open the Map</button>",
+      "css": ".ds-button-secondary { color: var(--ink); background: var(--surface); border: 1px solid #777; border-radius: 2px; padding: 10px 16px; font: 700 13px/1.15 'IBM Plex Sans', sans-serif; cursor: pointer; transition: background-color .18s ease, border-color .18s ease; } .ds-button-secondary:hover { background: var(--surface-muted); border-color: #444; } .ds-button-secondary:focus-visible { outline: 3px solid var(--green-dark); outline-offset: 3px; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Search a place or record while keeping the main action nearby.",
+      "html": "<label class=\"ds-search\"><span>Search location</span><input type=\"search\" placeholder=\"City, building or public place\"></label>",
+      "css": ".ds-search { display: grid; gap: 6px; color: var(--ink); font: 600 12px/1.4 'IBM Plex Sans', sans-serif; } .ds-search input { min-width: 0; height: 44px; padding: 0 11px; color: var(--text); background: var(--surface); border: 1px solid #777; border-radius: 0; font: 400 14px/1.5 'IBM Plex Sans', sans-serif; } .ds-search input::placeholder { color: var(--muted); opacity: 1; } .ds-search input:focus-visible { outline: 3px solid var(--green-dark); outline-offset: 3px; }"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "description": "Compact black navigation with one green active marker.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-brand\" href=\"#\">AidLocate</a><a href=\"#\">Home</a><a class=\"ds-active\" href=\"#\">Find Kits</a><a href=\"#\">Map</a></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 22px; min-height: 56px; padding: 0 16px; color: var(--on-dark-muted); background: var(--ink); font: 600 12px/1.3 'IBM Plex Sans', sans-serif; } .ds-nav a { position: relative; color: inherit; text-decoration: none; } .ds-nav a:hover, .ds-nav .ds-active { color: var(--green-light); } .ds-nav .ds-active::after { position: absolute; right: 0; bottom: -19px; left: 0; height: 3px; background: var(--green); content: ''; } .ds-nav .ds-brand { margin-right: auto; color: var(--surface); font-size: 15px; font-weight: 700; } .ds-nav a:focus-visible { outline: 3px solid var(--green-light); outline-offset: 3px; }"
+    },
+    {
+      "name": "Sample Notice",
+      "kind": "custom",
+      "description": "Unmissable context for unverified sample coordinates.",
+      "html": "<aside class=\"ds-sample-notice\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Zm0 10a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z\"/></svg><span>Sample locations only. Public access has not been verified.</span></aside>",
+      "css": ".ds-sample-notice { display: flex; align-items: flex-start; gap: 9px; padding: 11px 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--ink); font: 400 12px/1.5 'IBM Plex Sans', sans-serif; } .ds-sample-notice svg { width: 16px; height: 16px; flex: none; margin-top: 1px; fill: var(--ink); }"
+    },
+    {
+      "name": "Destination Result",
+      "kind": "card",
+      "description": "A scan-friendly kit record with aligned ID and direct actions.",
+      "html": "<article class=\"ds-result\"><div class=\"ds-result-meta\"><span>Sample record</span><strong>KIT001</strong></div><h3>University Campus</h3><p>Ground Floor · Near Main Reception</p><div class=\"ds-result-actions\"><button>Show on Map</button><a href=\"#\">View Details</a></div></article>",
+      "css": ".ds-result { padding: 14px 12px; color: var(--text); background: var(--surface); border-bottom: 1px solid var(--border); font-family: 'IBM Plex Sans', sans-serif; } .ds-result-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--ink); font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; } .ds-result-meta strong { color: var(--ink); font-variant-numeric: tabular-nums; } .ds-result h3 { margin: 8px 0 4px; color: var(--ink); font: 600 24px/1.05 'Barlow Condensed', sans-serif; } .ds-result p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; } .ds-result-actions { display: flex; gap: 8px; margin-top: 12px; } .ds-result-actions button, .ds-result-actions a { display: inline-flex; align-items: center; min-height: 33px; padding: 7px 10px; border: 1px solid #777; border-radius: 2px; color: var(--ink); background: var(--surface); font: 700 11px/1.2 'IBM Plex Sans', sans-serif; text-decoration: none; } .ds-result-actions button { color: var(--surface); background: var(--green); border-color: var(--green); cursor: pointer; } .ds-result-actions button:focus-visible, .ds-result-actions a:focus-visible { outline: 3px solid var(--green-dark); outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Mumbai Platform Display",
+    "overview": "AidLocate borrows the direct hierarchy of a contemporary Mumbai suburban railway display: strong condensed headlines, aligned information rows, a black-and-white field, and deliberate green and red signals. The reference is an information system, not a station replica; the interface uses no invented routes or nostalgic decoration.\n\nThe interface is an operational tool for people who may be using a phone in a public place and under time pressure. Keep actions easy to scan, make location data legible, and make uncertainty visible. Green identifies actions and selected states; red is reserved for urgent and error states. Kit coordinates are sample records, so their labels and markers stay monochrome and never suggest availability.",
+    "keyCharacteristics": [
+      "High-contrast, code-led hierarchy with Barlow Condensed display type.",
+      "Flat white surfaces framed by fine dividers rather than stacked rounded cards.",
+      "Green for primary actions and selected states; red for urgent and error states.",
+      "Compact navigation and aligned destination-style result rows."
+    ],
+    "rules": [
+      {
+        "name": "Sample-Is-Not-Status Rule",
+        "body": "Green marks actions and selected states, red marks urgent or error states, and monochrome labels identify unverified sample records. No color implies that a first-aid kit is confirmed available.",
+        "section": "colors"
+      },
+      {
+        "name": "Data-First Type Rule",
+        "body": "Use condensed display type for hierarchy, never for caveats, forms, or long location text.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do put the task, location action, and sample-data caveat before the /find map and results.",
+      "Do use Barlow Condensed for short display headlines and IBM Plex Sans for operational copy.",
+      "Do keep IDs and distances tabular and aligned for quick comparison.",
+      "Do label sample coordinates directly wherever kit results or markers appear."
+    ],
+    "donts": [
+      "Don't use green or red to imply a kit is stocked, verified, or available.",
+      "Don't invent real transit routes, locations, facility claims, or delivery states.",
+      "Don't rebuild pages from repeated rounded icon cards or decorative gradients.",
+      "Don't hide the sample-data caveat below the map or result list."
+    ]
+  }
+}

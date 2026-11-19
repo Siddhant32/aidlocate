@@ -80,8 +80,8 @@ function Header() {
   }, [])
   const close = () => setOpen(false)
   const nav = [
-    ['/', 'Home'], ['/find', 'Find First Aid'], ['/map', 'Explore Map'], ['/hospitals', 'Hospitals'],
-    ['/sos', 'Emergency SOS'], ['/contacts', 'Trusted Contacts'],
+    ['/', 'Home'], ['/find', 'Find Kits'], ['/map', 'Map'], ['/hospitals', 'Hospitals'],
+    ['/sos', 'SOS'], ['/contacts', 'Contacts'],
   ]
   return (
     <header className="site-header">
@@ -97,6 +97,9 @@ function Header() {
           {nav.map(([to, label]) => (
             <NavLink key={to} to={to} onClick={close} end={to === '/'}>{label}</NavLink>
           ))}
+          <Link className="mobile-nav-account" to={user ? '/profile' : '/login'} onClick={close}>
+            {user ? 'My Profile' : 'Log in'} <ArrowRight size={16} />
+          </Link>
         </nav>
         <Link to={user ? '/profile' : '/login'} className="button button-primary nav-cta" onClick={close}>
           {user ? 'My Profile' : 'Login'} <ArrowRight size={17} />
@@ -106,12 +109,11 @@ function Header() {
   )
 }
 
-function PageShell({ eyebrow, title, description, children }) {
+function PageShell({ title, description, children }) {
   return (
     <main>
       <section className="page-heading">
         <div className="container">
-          {eyebrow && <span className="eyebrow">{eyebrow}</span>}
           <h1>{title}</h1>
           {description && <p>{description}</p>}
         </div>
@@ -127,14 +129,14 @@ function Home() {
       <section className="hero-section">
         <div className="container hero-grid">
           <div className="hero-copy">
-            <span className="eyebrow"><ShieldCheck size={16} /> Public safety support</span>
-            <h1>Find Help. <span>Find First Aid.</span><br />Stay Safe.</h1>
-            <p>Locate nearby first aid kits, medical facilities and emergency support through one clear, accessible platform.</p>
+            <h1>Find Help.<br /><span>Find First Aid.</span><br />Stay Safe.</h1>
+            <p>Search sample first-aid records, find nearby medical facilities and reach emergency support through one clear platform.</p>
             <div className="hero-actions">
-              <Link className="button button-primary" to="/find">Find a First Aid Kit <ArrowRight size={18} /></Link>
-              <Link className="button button-secondary" to="/map"><MapPin size={18} /> Explore First Aid Map</Link>
+              <Link className="button button-primary" to="/find">Search Kit Records <ArrowRight size={18} /></Link>
+              <Link className="button button-secondary" to="/map"><MapPin size={18} /> Open the Map</Link>
             </div>
             <Link className="text-link" to="/qr"><Camera size={17} /> Or scan a kit QR code</Link>
+            <p className="home-sample-note"><MapPin size={15} /> Kit locations shown are samples, not verified for public access.</p>
           </div>
           <div className="hero-visual" aria-label="Public place first aid location illustration">
             <div className="map-card">
@@ -161,9 +163,9 @@ function Home() {
           <div className="section-heading"><span className="eyebrow">How it works</span><h2>Three simple ways to find help</h2></div>
           <div className="feature-grid">
             {[
-              [Search, 'Find a First Aid Kit', 'Search for nearby first aid kits by city, building or public place.', '/find'],
-              [Camera, 'Scan a QR Code', 'Scan the unique QR code attached to a first aid kit to instantly view its location.', '/qr'],
-              [MapPin, 'Explore the First Aid Map', 'View registered first aid kit locations on an interactive map.', '/map'],
+              [Search, 'Search Kit Records', 'Search sample first-aid locations by city, building or public place.', '/find'],
+              [Camera, 'Scan a QR Code', 'Scan an AidLocate code to look up its corresponding sample record.', '/qr'],
+              [MapPin, 'Explore the Map', 'Compare kit-record coordinates and nearby medical facilities on a map.', '/map'],
             ].map(([Icon, title, text, to]) => (
               <Link to={to} className="feature-card" key={title}>
                 <span className="feature-icon"><Icon size={26} /></span>
@@ -182,7 +184,7 @@ function Home() {
             <h2>Clear information when every minute matters</h2>
           </div>
           <div className="benefit-grid">
-            {['Faster first aid kit discovery', 'Easy access to location information', 'Simple QR code identification', 'Centralized public first aid locations'].map((item) => (
+            {['Search by place or current location', 'Sample kit records clearly labeled', 'Simple QR code lookup', 'Live medical-facility search'].map((item) => (
               <div className="benefit" key={item}><CheckCircle2 size={21} /><span>{item}</span></div>
             ))}
           </div>
@@ -191,27 +193,27 @@ function Home() {
 
       <section className="cta-section">
         <div className="container cta-card">
-          <div><span className="eyebrow">Public safety starts here</span><h2>Don't Waste Time Searching. Find First Aid Quickly.</h2></div>
-          <Link className="button button-primary" to="/find">Find a Kit Now <ArrowRight size={18} /></Link>
+          <div><span className="eyebrow">Public safety starts here</span><h2>Start with a location search or browse the map.</h2></div>
+          <Link className="button button-primary" to="/find">Search Kit Records <ArrowRight size={18} /></Link>
         </div>
       </section>
     </main>
   )
 }
 
-function KitCard({ kit, compact = false }) {
+function KitCard({ kit, compact = false, onSelect, selected = false }) {
   const navigate = useNavigate()
   return (
-    <article className={compact ? 'kit-card compact' : 'kit-card'}>
+    <article className={`${compact ? 'kit-card compact' : 'kit-card'}${selected ? ' selected' : ''}`}>
       <div className="kit-card-top">
-        <span className="kit-status"><ShieldCheck size={14} /> Located</span>
+        <span className="kit-status"><MapPin size={14} /> {kit.sample ? 'Sample record' : 'Location record'}</span>
         <span className="kit-id">{kit.id}</span>
       </div>
       <h3>{kit.locationName || kit.building}</h3>
-      <div className="kit-category">{kit.category} · Sample location</div>
+      <div className="kit-category">{kit.category}</div>
       <div className="kit-meta"><MapPin size={17} /><div><strong>{kit.floor}</strong><span>{kit.location}</span></div></div>
       <div className="card-actions">
-        <button className="button button-primary" onClick={() => navigate(`/map?kit=${kit.id}`)}>View on Map</button>
+        <button className="button button-primary" aria-pressed={selected} onClick={() => onSelect ? onSelect(kit) : navigate(`/map?kit=${kit.id}`)}>{onSelect ? 'Show on Map' : 'View on Map'}</button>
         <Link className="button button-secondary" to={`/kit/${kit.id}`}>View Details</Link>
       </div>
     </article>
@@ -225,6 +227,7 @@ function Locator() {
   const [position, setPosition] = useState(null)
   const [locationError, setLocationError] = useState('')
   const [isLocating, setIsLocating] = useState(false)
+  const [selectedKit, setSelectedKit] = useState(null)
   const categories = ['All Categories', ...new Set(kits.map((kit) => kit.category))]
   const filtered = useMemo(() => kits.filter((kit) => {
     const matchesCategory = category === 'All Categories' || kit.category === category
@@ -251,6 +254,7 @@ function Locator() {
     navigator.geolocation.getCurrentPosition(
       (current) => {
         setPosition(current)
+        setSelectedKit(null)
         setIsLocating(false)
       },
       (error) => {
@@ -265,7 +269,7 @@ function Locator() {
     : filtered
 
   return (
-    <PageShell eyebrow="Universal Kit Locator" title="Find Your Nearest First Aid Kit" description="Search for a first aid kit by city, building, institution or public place.">
+    <PageShell eyebrow="Universal Kit Locator" title="Search First Aid Kit Records" description="Use a place search or your location to compare kit records. Their locations and public access have not been verified.">
       <section className="section locator-section">
         <div className="container">
           <div className="search-panel">
@@ -280,21 +284,44 @@ function Locator() {
                 {categories.map((name) => <option key={name}>{name}</option>)}
               </select>
             </label>
+            <button className="button button-primary locator-location" onClick={useCurrentLocation} disabled={isLocating}><LocateFixed size={16} /> {isLocating ? 'Locating...' : 'Use My Location'}</button>
           </div>
-          <div className="results-heading"><h2>{filtered.length} {filtered.length === 1 ? 'kit' : 'kits'} found</h2><button className="button button-secondary" onClick={useCurrentLocation} disabled={isLocating}><LocateFixed size={16} /> {isLocating ? 'Locating...' : 'Use My Location'}</button></div>
-          {locationError && <div className="alert error"><X size={17} /> {locationError}</div>}
-          {position && <div className="alert" style={{ color: '#176846', background: '#edf8f3' }}><LocateFixed size={17} /> Kits are sorted by distance from your current location.</div>}
-          {filtered.length ? (
-            <div className="kit-grid">{nearbyKits.map((kit) => (
-              <div key={kit.id}>
-                <KitCard kit={kit} />
-                {distanceTo(kit) !== null && <div className="distance-label">{distanceTo(kit).toFixed(1)} km away</div>}
-                {kit.lat && kit.lng && <a className="directions-link" href={`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${position ? `${position.coords.latitude},${position.coords.longitude};` : ''}${kit.lat},${kit.lng}`} target="_blank" rel="noreferrer">Open Directions <Navigation size={14} /></a>}
+          <div className="demo-notice sample-notice"><MapPin size={16} /><span>Sample locations only. These records are not verified and may not be publicly accessible.</span></div>
+          <div className="locator-workspace">
+            <div className="map-panel locator-map-panel" role="region" aria-label="Map of sample kit locations">
+              <MapContainer center={[19.0760, 72.8777]} zoom={10} scrollWheelZoom={true} className="leaflet-map">
+                <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <LocatorMapFocus position={position ? { lat: position.coords.latitude, lng: position.coords.longitude } : null} selectedKit={selectedKit} kits={nearbyKits} />
+                {position && <Marker position={[position.coords.latitude, position.coords.longitude]} icon={userIcon}><Popup>Your current location</Popup></Marker>}
+                {nearbyKits.filter((kit) => Number.isFinite(kit.lat) && Number.isFinite(kit.lng)).map((kit) => (
+                  <Marker key={kit.id} position={[kit.lat, kit.lng]} icon={kitIcon} eventHandlers={{ click: () => setSelectedKit(kit) }}>
+                    <Popup><strong>{kit.locationName || kit.building}</strong><br />Sample record — not verified</Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+              <div className="map-legend"><span className="legend-marker"></span> Sample kit coordinates · unverified</div>
+            </div>
+            <section className="locator-results" aria-label="First aid kit results">
+              <div className="results-heading">
+                <h2>{filtered.length} {filtered.length === 1 ? 'kit record' : 'kit records'}</h2>
               </div>
-            ))}</div>
-          ) : (
-            <div className="empty-state"><MapPin size={38} /><h3>No matching kits found</h3><p>Try another place name or clear your filters.</p><button className="button button-secondary" onClick={() => { setQuery(''); setCategory('All Categories') }}>Clear filters</button></div>
-          )}
+              {locationError && <div className="alert error"><X size={17} /> {locationError}</div>}
+              {position && <div className="alert success"><LocateFixed size={17} /> Sorted by distance from your current location.</div>}
+              {filtered.length ? (
+                <div className="kit-grid">{nearbyKits.map((kit) => (
+                  <div className="locator-result" key={kit.id}>
+                    <KitCard kit={kit} compact onSelect={setSelectedKit} selected={selectedKit?.id === kit.id} />
+                    <div className="locator-result-meta">
+                      {distanceTo(kit) !== null && <span className="distance-label">{distanceTo(kit).toFixed(1)} km away</span>}
+                      {kit.lat && kit.lng && <a className="directions-link" href={`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${position ? `${position.coords.latitude},${position.coords.longitude};` : ''}${kit.lat},${kit.lng}`} target="_blank" rel="noreferrer">Directions <Navigation size={14} /></a>}
+                    </div>
+                  </div>
+                ))}</div>
+              ) : (
+                <div className="empty-state"><MapPin size={38} /><h3>No matching kit records</h3><p>Try another place name or clear your filters.</p><button className="button button-secondary" onClick={() => { setQuery(''); setCategory('All Categories') }}>Clear filters</button></div>
+              )}
+            </section>
+          </div>
         </div>
       </section>
     </PageShell>
@@ -306,6 +333,23 @@ function MapFocus({ kit }) {
   useEffect(() => {
     if (kit) map.flyTo([kit.lat, kit.lng], 18, { duration: 0.8 })
   }, [kit, map])
+  return null
+}
+
+function LocatorMapFocus({ position, selectedKit, kits }) {
+  const map = useMap()
+  const locationsKey = kits
+    .filter((kit) => Number.isFinite(kit.lat) && Number.isFinite(kit.lng))
+    .map((kit) => `${kit.lat},${kit.lng}`)
+    .join('|')
+  useEffect(() => {
+    if (Number.isFinite(selectedKit?.lat) && Number.isFinite(selectedKit?.lng)) map.flyTo([selectedKit.lat, selectedKit.lng], 15, { duration: 0.8 })
+    else if (position) map.flyTo([position.lat, position.lng], 13, { duration: 0.8 })
+    else {
+      const points = locationsKey.split('|').filter(Boolean).map((point) => point.split(',').map(Number))
+      if (points.length) map.fitBounds(points, { padding: [36, 36], maxZoom: 11 })
+    }
+  }, [position, selectedKit, locationsKey, map])
   return null
 }
 
@@ -369,7 +413,7 @@ function CampusMap() {
   }
 
   return (
-    <PageShell eyebrow="Universal First Aid Map" title="Explore First Aid Locations" description="Discover registered first aid kit locations across public places and institutions.">
+    <PageShell eyebrow="Universal First Aid Map" title="Explore First Aid Locations" description="Browse sample kit records on the map. Their locations and public access have not been verified.">
       <section className="section map-section">
         <div className="container">
           <div className="demo-notice"><LocateFixed size={16} /> Sample demonstration locations — not verified real first aid kit locations.</div>
@@ -392,7 +436,7 @@ function CampusMap() {
                   </Marker>
                 ))}
               </MapContainer>
-              <div className="map-legend"><span className="legend-marker"></span> Green marker – First Aid Kit Location</div>
+              <div className="map-legend"><span className="legend-marker"></span> Sample kit coordinates · unverified</div>
             </div>
             <aside className="map-sidebar">
               <div className="sidebar-search"><Search size={18} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search place or city..." /></div>
@@ -407,7 +451,7 @@ function CampusMap() {
               </div>
               {selected && (
                 <div className="location-panel">
-                  <span className="eyebrow">Selected location</span>
+                      <span className="record-state">Selected sample record</span>
                   <h3>{selected.locationName || selected.building}</h3>
                   <p><strong>{selected.id}</strong></p>
                   <p>{selected.floor}</p>
@@ -501,9 +545,10 @@ function QRScannerPage() {
           <div className="qr-result-column">
             {result ? (
               <div className="qr-found">
-                <span className="found-icon"><CheckCircle2 size={28} /></span>
-                <span className="eyebrow">First aid kit found</span>
+                  <span className="found-icon"><MapPin size={25} /></span>
+                    <span className="record-state">{result.sample ? 'Sample kit record · not verified' : 'Kit record'}</span>
                 <h2>{result.id}</h2>
+                    {result.sample && <p className="sample-caveat">This sample record does not confirm that a kit is present or publicly accessible.</p>}
                 <dl><div><dt>Building</dt><dd>{result.building}</dd></div><div><dt>Floor</dt><dd>{result.floor}</dd></div><div><dt>Exact location</dt><dd>{result.location}</dd></div></dl>
                 <button className="button button-primary" onClick={() => navigate(`/map?kit=${result.id}`)}>View on Interactive Map <ArrowRight size={17} /></button>
               </div>
@@ -533,7 +578,7 @@ function KitQRGenerator() {
   }
   return (
     <div className="qr-generator">
-      <div><span className="eyebrow">Generate kit code</span><h3>Registered kit QR codes</h3></div>
+      <div><span className="eyebrow">Generate kit code</span><h3>Sample kit QR codes</h3></div>
       <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} aria-label="Choose kit for QR code">
         {loadKits().map((item) => <option value={item.id} key={item.id}>{item.id} — {item.building}</option>)}
       </select>
@@ -553,10 +598,11 @@ function KitDetails() {
     </PageShell>
   )
   return (
-    <PageShell eyebrow="First Aid Kit Details" title={kit.locationName || kit.building} description="Complete location information for this registered first aid kit.">
+    <PageShell eyebrow="First Aid Kit Details" title={kit.locationName || kit.building} description={kit.sample ? "Sample location record. The kit's presence and public access have not been verified." : 'Location information for this first-aid kit record.'}>
       <section className="section">
         <div className="container detail-layout">
           <div className="detail-card">
+            {kit.sample && <div className="demo-notice sample-notice"><MapPin size={16} /><span>This sample record does not confirm that a kit is present or publicly accessible.</span></div>}
             <div className="detail-header"><span className="detail-icon"><Cross size={30} /></span><div><span className="kit-id">{kit.id}</span><h2>{kit.building}</h2></div></div>
             <dl className="detail-list">
               <div><dt>Location name</dt><dd>{kit.locationName || kit.building}</dd></div>
@@ -588,7 +634,7 @@ function About() {
           </div>
           <div className="about-features">
             {[
-              [Search, 'First Aid Kit Locator', 'Search and filter registered kits across all supported environments.'],
+              [Search, 'First Aid Kit Locator', 'Search and filter sample kit records by place.'],
               [Camera, 'QR Code First Aid Locator', 'Identify a kit instantly using its unique code.'],
               [Navigation, 'Interactive First Aid Map', 'Explore kit locations on a connected public map.'],
             ].map(([Icon, title, text]) => <div className="about-feature" key={title}><span><Icon size={22} /></span><div><h3>{title}</h3><p>{text}</p></div></div>)}
@@ -726,11 +772,12 @@ function Hospitals() {
           </div>
           {loading && <div className="loading-state"><span className="spinner"></span>Searching live medical facilities...</div>}
           {error && <div className="alert error"><X size={17} /> {error}</div>}
-          <div className="demo-notice"><LocateFixed size={16} /> Live OpenStreetMap results via Photon. Google Maps links open separately.</div>
+          <div className="demo-notice live-notice"><LocateFixed size={16} /> Live OpenStreetMap results via Photon. Google Maps links open separately.</div>
           <div className="map-layout hospital-map-layout">
             <div className="map-panel">
               <MapContainer center={location ? [location.lat, location.lng] : [19.0760, 72.8777]} zoom={location ? 13 : 10} className="leaflet-map">
                 <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <UserMapFocus position={location} />
                 {location && <Marker position={[location.lat, location.lng]} icon={userIcon}><Popup>Your current location</Popup></Marker>}
                 {filtered.map((item) => (
                   <Marker key={item.id} position={[item.lat, item.lng]} icon={hospitalIcon}>
@@ -744,7 +791,14 @@ function Hospitals() {
               </MapContainer>
             </div>
             <aside className="map-sidebar hospital-list">
-              <div className="location-panel"><span className="eyebrow">Medical facilities</span><h3>{filtered.length} results</h3></div>
+              <div className="location-panel"><span className="eyebrow">Medical facilities</span><h3>{filtered.length} {filtered.length === 1 ? 'result' : 'results'}</h3></div>
+              {!filtered.length && !loading && !error && (
+                <div className="empty-state facility-empty">
+                  <MapPin size={28} />
+                  <h3>{facilities.length ? 'No matching facilities' : 'Search an area to begin'}</h3>
+                  <p>{facilities.length ? 'Try another facility filter.' : 'Use your location or search a city to see live medical facilities.'}</p>
+                </div>
+              )}
               {filtered.map((item) => {
                 const distance = haversine(item.lat, item.lng)
                 return (
