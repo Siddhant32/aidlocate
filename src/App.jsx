@@ -8,7 +8,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import {
   ArrowLeft, ArrowRight, Building2, Camera, CheckCircle2, Cross, Download,
   LocateFixed, MapPin, Menu, Navigation, Search, ShieldCheck, X,
-  Siren, Phone, HeartPulse, Users, User, LogOut, Bell, Clock3,
+  Siren, Phone, HeartPulse, Users, User, LogOut, Clock3,
   Share2, StopCircle, ExternalLink
 } from 'lucide-react'
 import { findKit, loadKits } from './data'
@@ -56,6 +56,13 @@ const sosIcon = L.divIcon({
   iconAnchor: [23, 46],
   popupAnchor: [0, -44],
 })
+const userIcon = L.divIcon({
+  className: 'kit-marker',
+  html: '<div class="user-marker-inner"></div>',
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -12],
+})
 
 function Header() {
   const [open, setOpen] = useState(false)
@@ -85,8 +92,8 @@ function Header() {
             <NavLink key={to} to={to} onClick={close} end={to === '/'}>{label}</NavLink>
           ))}
         </nav>
-        <Link to="/find" className="button button-primary nav-cta" onClick={close}>
-          {user ? 'Find First Aid' : 'Get Started'} <ArrowRight size={17} />
+        <Link to={user ? '/profile' : '/login'} className="button button-primary nav-cta" onClick={close}>
+          {user ? 'My Profile' : 'Login'} <ArrowRight size={17} />
         </Link>
       </div>
     </header>
@@ -291,6 +298,8 @@ function CampusMap() {
   const [selected, setSelected] = useState(findKit(selectedId) || kits[0])
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All Categories')
+  const [userPosition, setUserPosition] = useState(null)
+  const [locationError, setLocationError] = useState('')
   const categories = ['All Categories', ...new Set(kits.map((kit) => kit.category))]
   const list = kits.filter((kit) => {
     const matchesCategory = category === 'All Categories' || kit.category === category
@@ -302,16 +311,33 @@ function CampusMap() {
     if (found) setSelected(found)
   }, [selectedId])
 
+  const locateUser = () => {
+    setLocationError('')
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is unavailable in this browser.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => setUserPosition({ lat: coords.latitude, lng: coords.longitude }),
+      () => setLocationError('Location permission denied. You can still search and select map locations manually.')
+    )
+  }
+
   return (
     <PageShell eyebrow="Universal First Aid Map" title="Explore First Aid Locations" description="Discover registered first aid kit locations across public places and institutions.">
       <section className="section map-section">
         <div className="container">
           <div className="demo-notice"><LocateFixed size={16} /> Sample demonstration locations — not verified real first aid kit locations.</div>
+          <div className="map-toolbar">
+            <button className="button button-secondary" onClick={locateUser}><LocateFixed size={17} /> Use My Location</button>
+            {locationError && <span className="map-location-error">{locationError}</span>}
+          </div>
           <div className="map-layout">
             <div className="map-panel">
               <MapContainer center={[19.0760, 72.8777]} zoom={8} scrollWheelZoom={true} className="leaflet-map">
                 <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapFocus kit={selected} />
+                {userPosition && <Marker position={[userPosition.lat, userPosition.lng]} icon={userIcon}><Popup>Your current location</Popup></Marker>}
                 {list.map((kit) => (
                   <Marker key={kit.id} position={[kit.lat, kit.lng]} icon={kitIcon} eventHandlers={{ click: () => setSelected(kit) }}>
                     <Popup>
@@ -341,6 +367,7 @@ function CampusMap() {
                   <p>{selected.floor}</p>
                   <p>{selected.location}</p>
                   <Link className="button button-primary" to={`/kit/${selected.id}`}>View Full Details</Link>
+                  {selected.lat && selected.lng && <a className="button button-secondary" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${selected.lat},${selected.lng}`}>Open Directions <Navigation size={15} /></a>}
                 </div>
               )}
             </aside>
@@ -391,7 +418,7 @@ function QRScannerPage() {
         () => {}
       )
       setScanning(true)
-    } catch (err) {
+    } catch {
       setScanning(false)
       setError('Camera unavailable or permission denied. Use the manual kit ID option below.')
     }
@@ -558,7 +585,8 @@ function Hospitals() {
       if (!response.ok) throw new Error('Medical facility service unavailable')
       const data = await response.json()
       const results = data.elements.map((item, index) => {
-        const type = item.tags?.amenity === 'hospital' ? 'Hospital'
+        const type = item.tags?.emergency === 'yes' ? 'Emergency Department'
+          : item.tags?.amenity === 'hospital' ? 'Hospital'
           : item.tags?.amenity === 'doctors' ? 'Medical Centre'
           : item.tags?.amenity === 'clinic' ? 'Clinic'
           : 'Medical Facility'
@@ -623,7 +651,7 @@ function Hospitals() {
     if (filter === 'All') return true
     if (filter === 'Hospitals') return item.type === 'Hospital'
     if (filter === 'Clinics') return item.type === 'Clinic' || item.type === 'Medical Centre'
-    return item.type === 'Hospital'
+    return item.type === 'Emergency Department'
   })
 
   return (
@@ -647,7 +675,7 @@ function Hospitals() {
             <div className="map-panel">
               <MapContainer center={location ? [location.lat, location.lng] : [19.0760, 72.8777]} zoom={location ? 13 : 10} className="leaflet-map">
                 <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                {location && <Marker position={[location.lat, location.lng]} icon={sosIcon}><Popup>Your current location</Popup></Marker>}
+                {location && <Marker position={[location.lat, location.lng]} icon={userIcon}><Popup>Your current location</Popup></Marker>}
                 {filtered.map((item) => (
                   <Marker key={item.id} position={[item.lat, item.lng]} icon={hospitalIcon}>
                     <Popup><strong>{item.name}</strong><br />{item.type}{item.phone ? `<br />${item.phone}` : ''}</Popup>
@@ -689,6 +717,15 @@ function AuthPage() {
     setError('')
     setMessage('')
     try {
+      if (mode === 'recovery') {
+        if (!supabase) throw new Error('Password recovery requires Supabase configuration.')
+        const { error: authError } = await supabase.auth.resetPasswordForEmail(form.email, {
+          redirectTo: `${window.location.origin}/login`,
+        })
+        if (authError) throw authError
+        setMessage('Password recovery email sent. Check your inbox.')
+        return
+      }
       if (supabase) {
         if (mode === 'register') {
           const { data, error: authError } = await supabase.auth.signUp({
@@ -721,23 +758,29 @@ function AuthPage() {
       }
       window.dispatchEvent(new Event('aidlocate-auth'))
       navigate('/profile')
-    } catch (err) {
+    } catch {
       setError(err.message || 'Authentication failed.')
     }
   }
 
   return (
-    <PageShell eyebrow="AidLocate Account" title={mode === 'login' ? 'Log in' : 'Create an account'} description="Manage emergency contacts and consent-based location sharing.">
+    <PageShell
+      eyebrow="AidLocate Account"
+      title={mode === 'login' ? 'Log in' : mode === 'register' ? 'Create an account' : 'Recover password'}
+      description="Manage emergency contacts and consent-based location sharing."
+    >
       <section className="section"><div className="container auth-layout">
         <form className="auth-card" onSubmit={submit}>
           {mode === 'register' && <label>Full name<input required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>}
           <label>Email address<input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
           {mode === 'register' && <label>Phone number<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>}
-          <label>Password<input required type="password" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+          {mode !== 'recovery' && <label>Password<input required type="password" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>}
           {error && <div className="alert error">{error}</div>}
           {message && <div className="alert success">{message}</div>}
-          <button className="button button-primary">{mode === 'login' ? 'Log In' : 'Register'}</button>
-          <button type="button" className="auth-switch" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>{mode === 'login' ? 'Create a new account' : 'Already have an account? Log in'}</button>
+          <button className="button button-primary">{mode === 'login' ? 'Log In' : mode === 'register' ? 'Register' : 'Send Recovery Email'}</button>
+          {mode === 'login' && <button type="button" className="auth-switch" onClick={() => setMode('recovery')}>Forgot password?</button>}
+          {mode !== 'login' && <button type="button" className="auth-switch" onClick={() => setMode('login')}>Return to login</button>}
+          {mode === 'login' && <button type="button" className="auth-switch" onClick={() => setMode('register')}>Create a new account</button>}
           {!supabase && <p className="provider-note">Supabase is not configured. Authentication and records are currently stored only in this browser as a demonstration.</p>}
         </form>
       </div></section>
@@ -747,13 +790,43 @@ function AuthPage() {
 
 function Profile() {
   const [user, setUser] = useState(getAuthUser())
-  const [form, setForm] = useState(user || { fullName: '', email: '', phone: '' })
+  const [form, setForm] = useState(user ? {
+    ...user,
+    locationSharing: user.locationSharing || 'Ask every time',
+    notifications: user.notifications || 'SMS or email',
+  } : { fullName: '', email: '', phone: '', locationSharing: 'Ask every time', notifications: 'SMS or email' })
   const [message, setMessage] = useState('')
   const navigate = useNavigate()
-  const save = (event) => {
+
+  useEffect(() => {
+    if (!supabase || !user?.id) return
+    supabase.from('profiles').select('*').eq('id', user.id).maybeSingle().then(({ data }) => {
+      if (!data) return
+      setForm((current) => ({
+        ...current,
+        fullName: data.full_name || current.fullName,
+        email: data.email || current.email,
+        phone: data.phone || current.phone,
+        locationSharing: data.location_sharing_preferences?.mode || 'Ask every time',
+        notifications: data.notification_preferences?.method || 'SMS or email',
+      }))
+    })
+  }, [user?.id])
+
+  const save = async (event) => {
     event.preventDefault()
     setStoredJson(AUTH_KEY, form)
     setUser(form)
+    if (supabase && user?.id) {
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        full_name: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        location_sharing_preferences: { mode: form.locationSharing },
+        notification_preferences: { method: form.notifications },
+      })
+    }
     setMessage('Profile updated successfully.')
     window.dispatchEvent(new Event('aidlocate-auth'))
   }
@@ -773,6 +846,16 @@ function Profile() {
           <label>Full name<input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
           <label>Email address<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
           <label>Phone number<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+          <label>Location sharing preference
+            <select value={form.locationSharing} onChange={(e) => setForm({ ...form, locationSharing: e.target.value })}>
+              <option>Ask every time</option><option>Enabled for active SOS only</option><option>Never share automatically</option>
+            </select>
+          </label>
+          <label>Emergency notification preference
+            <select value={form.notifications} onChange={(e) => setForm({ ...form, notifications: e.target.value })}>
+              <option>SMS or email</option><option>SMS only</option><option>Email only</option><option>Share only</option>
+            </select>
+          </label>
           {message && <div className="alert success">{message}</div>}
           <button className="button button-primary">Save Profile</button>
           <button type="button" className="button button-secondary" onClick={logout}><LogOut size={17} /> Log Out</button>
@@ -817,16 +900,57 @@ function SOSPage() {
       sharingEnabled: true,
       createdAt: now,
       updatedAt: now,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       latitude: position?.lat || null,
       longitude: position?.lng || null,
+      contactIds: selected,
     }
     const alerts = getStoredJson(ALERTS_KEY)
     setStoredJson(ALERTS_KEY, [alert, ...alerts])
 
+    if (supabase && user?.id) {
+      await supabase.from('emergency_alerts').insert({
+        id: alert.id,
+        user_id: user.id,
+        status: 'active',
+        latitude: alert.latitude,
+        longitude: alert.longitude,
+        sharing_enabled: true,
+        sharing_token: alert.token,
+        expires_at: alert.expiresAt,
+      })
+      if (alert.latitude && alert.longitude) {
+        await supabase.from('emergency_locations').insert({
+          alert_id: alert.id,
+          latitude: alert.latitude,
+          longitude: alert.longitude,
+        })
+      }
+    }
+
     const chosen = contacts.filter((item) => selected.includes(item.id))
     const notificationUrl = import.meta.env.VITE_NOTIFICATION_API_URL
     let deliveryMessage = 'Notification provider not configured. No notification was sent.'
-    if (notificationUrl && chosen.length) {
+    if (supabase && chosen.length) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (!sessionData.session) throw new Error('Authentication session unavailable')
+        const { data, error: functionError } = await supabase.functions.invoke('send-sos', {
+          body: {
+            alertId: alert.id,
+            name: alert.name,
+            locationUrl: position ? getGoogleMapsLink(position.lat, position.lng) : null,
+            activatedAt: now,
+            contacts: chosen,
+          },
+        })
+        deliveryMessage = functionError
+          ? 'Notification backend returned an error. No delivery is confirmed.'
+          : `Notification backend processed ${data?.results?.length || 0} selected contact(s); delivery status shown by provider logs.`
+      } catch {
+        deliveryMessage = 'Notification backend could not be reached. No delivery is confirmed.'
+      }
+    } else if (notificationUrl && chosen.length) {
       try {
         const response = await fetch(notificationUrl, {
           method: 'POST',
@@ -898,15 +1022,34 @@ function SOSPage() {
 function EmergencyTracking({ shared = false }) {
   const params = useParams()
   const alerts = getStoredJson(ALERTS_KEY)
-  const alert = shared
+  const alert = (shared
     ? alerts.find((item) => item.token === params.token)
-    : alerts.find((item) => item.id === params.id)
-  const [latest, setLatest] = useState(alert || null)
+    : alerts.find((item) => item.id === params.id))
+  const usableAlert = alert
+  const [latest, setLatest] = useState(usableAlert || null)
   const [watchError, setWatchError] = useState('')
   const watcher = useRef(null)
 
   useEffect(() => {
-    if (!alert || shared || !alert.sharingEnabled) return
+    if (!shared || usableAlert) return
+    if (!supabase) return
+    supabase.rpc('get_emergency_location', { p_token: params.token }).then(({ data }) => {
+      if (!data?.length) return
+      const row = data[0]
+      setLatest({
+        id: row.alert_id,
+        token: params.token,
+        name: row.person_name || 'AidLocate user',
+        sharingEnabled: true,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        updatedAt: row.updated_at,
+      })
+    })
+  }, [shared, params.token, usableAlert])
+
+  useEffect(() => {
+    if (!usableAlert || shared || !usableAlert.sharingEnabled) return
     if (!navigator.geolocation) {
       setWatchError('Live location is unavailable in this browser.')
       return
@@ -914,9 +1057,23 @@ function EmergencyTracking({ shared = false }) {
     watcher.current = navigator.geolocation.watchPosition(
       ({ coords }) => {
         const now = new Date().toISOString()
-        const updated = { ...alert, latitude: coords.latitude, longitude: coords.longitude, updatedAt: now, sharingEnabled: true }
+        const updated = { ...usableAlert, latitude: coords.latitude, longitude: coords.longitude, updatedAt: now, sharingEnabled: true }
         setLatest(updated)
-        setStoredJson(ALERTS_KEY, getStoredJson(ALERTS_KEY).map((item) => item.id === alert.id ? updated : item))
+        setStoredJson(ALERTS_KEY, getStoredJson(ALERTS_KEY).map((item) => item.id === usableAlert.id ? updated : item))
+        if (supabase) {
+          supabase.from('emergency_locations').insert({
+            alert_id: usableAlert.id,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            updated_at: now,
+          })
+          supabase.from('emergency_alerts').update({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            sharing_enabled: true,
+            status: 'active',
+          }).eq('id', usableAlert.id)
+        }
       },
       () => setWatchError('Live updates paused. Location permission or connectivity may be unavailable.'),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
@@ -924,13 +1081,32 @@ function EmergencyTracking({ shared = false }) {
     return () => {
       if (watcher.current !== null) navigator.geolocation.clearWatch(watcher.current)
     }
-  }, [alert?.id, shared])
+  }, [usableAlert, shared])
 
   const stopSharing = () => {
     if (watcher.current !== null) navigator.geolocation.clearWatch(watcher.current)
     const stopped = { ...latest, sharingEnabled: false, status: 'sharing-ended', updatedAt: new Date().toISOString() }
     setLatest(stopped)
     setStoredJson(ALERTS_KEY, getStoredJson(ALERTS_KEY).map((item) => item.id === stopped.id ? stopped : item))
+    if (supabase) {
+      supabase.from('emergency_alerts').update({
+        sharing_enabled: false,
+        status: 'sharing-ended',
+      }).eq('id', stopped.id)
+    }
+    const contacts = getStoredJson(CONTACTS_KEY).filter((item) => stopped.contactIds?.includes(item.id))
+    if (supabase && contacts.length) {
+      supabase.functions.invoke('send-sos', {
+        body: {
+          alertId: stopped.id,
+          name: stopped.name,
+          locationUrl: stopped.latitude && stopped.longitude ? getGoogleMapsLink(stopped.latitude, stopped.longitude) : null,
+          activatedAt: stopped.updatedAt,
+          status: 'sharing-ended',
+          contacts,
+        },
+      })
+    }
   }
 
   if (!latest) return (
@@ -974,11 +1150,29 @@ function TrustedContacts() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (!supabase) return
+    supabase.auth.getSession().then(async ({ data }) => {
+      const user = data.session?.user
+      if (!user) return
+      const { data: rows } = await supabase.from('trusted_contacts').select('*').eq('user_id', user.id).order('created_at')
+      if (rows) setContacts(rows.map((item) => ({
+        id: item.id,
+        name: item.name,
+        relationship: item.relationship,
+        phone: item.phone,
+        email: item.email,
+        notification_preference: item.notification_preference,
+        primary: item.is_primary,
+      })))
+    })
+  }, [])
+
   const saveContacts = (next) => {
     setContacts(next)
     setStoredJson(CONTACTS_KEY, next)
   }
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault()
     setError('')
     if (!form.name.trim() || (!form.phone.trim() && !form.email.trim())) {
@@ -990,6 +1184,32 @@ function TrustedContacts() {
     else next = [...contacts, { ...form, id: makeToken() }]
     if (form.primary) next = next.map((item) => ({ ...item, primary: item.id === (editingId || next[next.length - 1].id) }))
     saveContacts(next)
+    if (supabase) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const userId = sessionData.session?.user?.id
+      if (userId) {
+        if (editingId) {
+          await supabase.from('trusted_contacts').update({
+            name: form.name,
+            relationship: form.relationship,
+            phone: form.phone,
+            email: form.email,
+            notification_preference: form.notification_preference,
+            is_primary: !!form.primary,
+          }).eq('id', editingId).eq('user_id', userId)
+        } else {
+          await supabase.from('trusted_contacts').insert({
+            user_id: userId,
+            name: form.name,
+            relationship: form.relationship,
+            phone: form.phone,
+            email: form.email,
+            notification_preference: form.notification_preference,
+            is_primary: !!form.primary,
+          })
+        }
+      }
+    }
     setForm(empty)
     setEditingId(null)
     setMessage(editingId ? 'Trusted contact updated.' : 'Trusted contact added.')
@@ -999,8 +1219,9 @@ function TrustedContacts() {
     setForm({ ...contact })
     setMessage('')
   }
-  const remove = (id) => {
+  const remove = async (id) => {
     saveContacts(contacts.filter((item) => item.id !== id))
+    if (supabase) await supabase.from('trusted_contacts').delete().eq('id', id)
     setMessage('Trusted contact deleted.')
   }
 

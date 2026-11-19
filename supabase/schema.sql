@@ -3,6 +3,8 @@ create table if not exists public.profiles (
   full_name text,
   email text,
   phone text,
+  location_sharing_preferences jsonb default '{}'::jsonb,
+  notification_preferences jsonb default '{}'::jsonb,
   updated_at timestamptz default now()
 );
 
@@ -94,3 +96,69 @@ create policy "Users can view own notification logs" on public.notification_logs
       where a.id = alert_id and a.user_id = auth.uid()
     )
   );
+
+create or replace function public.get_emergency_location(p_token text)
+returns table (
+  alert_id text,
+  person_name text,
+  latitude double precision,
+  longitude double precision,
+  updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select a.id,
+         p.full_name,
+         coalesce(l.latitude, a.latitude),
+         coalesce(l.longitude, a.longitude),
+         coalesce(l.updated_at, a.created_at)
+  from public.emergency_alerts a
+  left join public.profiles p on p.id = a.user_id
+  left join lateral (
+    select el.latitude, el.longitude, el.updated_at
+    from public.emergency_locations el
+    where el.alert_id = a.id
+    order by el.updated_at desc
+    limit 1
+  ) l on true
+  where a.sharing_token = p_token
+    and a.sharing_enabled = true
+    and (a.expires_at is null or a.expires_at > now())
+  limit 1;
+$$;
+
+revoke all on function public.get_emergency_location(text) from public;
+grant execute on function public.get_emergency_location(text) to anon, authenticated;
+
+alter table public.first_aid_kits enable row level security;
+create policy "Anyone can read registered first aid kits" on public.first_aid_kits
+  for select using (true);
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, full_name, email, phone)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', ''),
+    new.email,
+    coalesce(new.raw_user_meta_data->>'phone', '')
+  )
+  on conflict (id) do update set
+    full_name = excluded.full_name,
+    email = excluded.email,
+    phone = excluded.phone;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
