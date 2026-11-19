@@ -605,10 +605,10 @@ function Hospitals() {
           name: item.tags?.name || `${type} near ${lat.toFixed(3)}, ${lng.toFixed(3)}`,
           type,
           phone: item.tags?.phone || item.tags?.['contact:phone'] || null,
-          lat: item.lat || item.center?.lat,
-          lng: item.lon || item.center?.lon,
+          lat: item.lat ?? item.center?.lat,
+          lng: item.lon ?? item.center?.lon,
         }
-      }).filter((item) => item.lat && item.lng)
+      }).filter((item) => item.lat != null && item.lng != null)
       setFacilities(results)
       if (!results.length) setError('No nearby medical facilities were found in the live map provider.')
     } catch {
@@ -688,7 +688,7 @@ function Hospitals() {
                 {location && <Marker position={[location.lat, location.lng]} icon={userIcon}><Popup>Your current location</Popup></Marker>}
                 {filtered.map((item) => (
                   <Marker key={item.id} position={[item.lat, item.lng]} icon={hospitalIcon}>
-                    <Popup><strong>{item.name}</strong><br />{item.type}{item.phone ? `<br />${item.phone}` : ''}</Popup>
+                    <Popup><strong>{item.name}</strong><br />{item.type}{item.phone ? <><br />{item.phone}</> : null}</Popup>
                   </Marker>
                 ))}
               </MapContainer>
