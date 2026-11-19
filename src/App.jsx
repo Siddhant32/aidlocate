@@ -585,30 +585,40 @@ function Hospitals() {
     setError('')
     setFacilities([])
     try {
-      const radius = 10000
-      const query = `[out:json][timeout:25];(nwr["amenity"="hospital"](around:${radius},${lat},${lng});nwr["amenity"="clinic"](around:${radius},${lat},${lng});nwr["amenity"="doctors"](around:${radius},${lat},${lng}););out center;`
-      const response = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
+      const endpoint = new URL('https://photon.komoot.io/reverse')
+      endpoint.searchParams.set('lat', String(lat))
+      endpoint.searchParams.set('lon', String(lng))
+      endpoint.searchParams.set('radius', '10')
+      endpoint.searchParams.set('limit', '50')
+      endpoint.searchParams.set('lang', 'en')
+      const facilityTypes = ['hospital', 'clinic', 'doctors']
+      facilityTypes.forEach((type) => {
+        endpoint.searchParams.append('osm_tag', `amenity:${type}`)
       })
+      const response = await fetch(endpoint)
       if (!response.ok) throw new Error('Medical facility service unavailable')
       const data = await response.json()
-      const results = data.elements.map((item, index) => {
-        const type = item.tags?.emergency === 'yes' ? 'Emergency Department'
-          : item.tags?.amenity === 'hospital' ? 'Hospital'
-          : item.tags?.amenity === 'doctors' ? 'Medical Centre'
-          : item.tags?.amenity === 'clinic' ? 'Clinic'
+      const results = (data.features || []).map((feature, index) => {
+        const properties = feature.properties || {}
+        const [lngValue, latValue] = feature.geometry?.coordinates || []
+        const type = properties.osm_value === 'hospital' ? 'Hospital'
+          : properties.osm_value === 'doctors' ? 'Medical Centre'
+          : properties.osm_value === 'clinic' ? 'Clinic'
           : 'Medical Facility'
+        const streetAddress = [properties.housenumber, properties.street].filter(Boolean).join(' ')
+        const address = [streetAddress, properties.locality, properties.city, properties.postcode]
+          .filter(Boolean)
+          .join(', ')
         return {
-          id: item.id || index,
-          name: item.tags?.name || `${type} near ${lat.toFixed(3)}, ${lng.toFixed(3)}`,
+          id: `${properties.osm_type || 'place'}-${properties.osm_id ?? index}`,
+          name: properties.name || type,
           type,
-          phone: item.tags?.phone || item.tags?.['contact:phone'] || null,
-          lat: item.lat ?? item.center?.lat,
-          lng: item.lon ?? item.center?.lon,
+          address: address || null,
+          phone: properties.phone || properties['contact:phone'] || null,
+          lat: latValue,
+          lng: lngValue,
         }
-      }).filter((item) => item.lat != null && item.lng != null)
+      }).filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng))
       setFacilities(results)
       if (!results.length) setError('No nearby medical facilities were found in the live map provider.')
     } catch {
@@ -661,7 +671,7 @@ function Hospitals() {
     if (filter === 'All') return true
     if (filter === 'Hospitals') return item.type === 'Hospital'
     if (filter === 'Clinics') return item.type === 'Clinic' || item.type === 'Medical Centre'
-    return item.type === 'Emergency Department'
+    return false
   })
 
   return (
@@ -675,12 +685,12 @@ function Hospitals() {
               <button className="button button-secondary">Search</button>
             </form>
             <select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Facility filter">
-              {['All', 'Hospitals', 'Clinics', 'Emergency Departments'].map((item) => <option key={item}>{item}</option>)}
+              {['All', 'Hospitals', 'Clinics'].map((item) => <option key={item}>{item}</option>)}
             </select>
           </div>
           {loading && <div className="loading-state"><span className="spinner"></span>Searching live medical facilities...</div>}
           {error && <div className="alert error"><X size={17} /> {error}</div>}
-          <div className="demo-notice"><LocateFixed size={16} /> Live OpenStreetMap/Overpass results. Google Maps links open separately.</div>
+          <div className="demo-notice"><LocateFixed size={16} /> Live OpenStreetMap results via Photon. Google Maps links open separately.</div>
           <div className="map-layout hospital-map-layout">
             <div className="map-panel">
               <MapContainer center={location ? [location.lat, location.lng] : [19.0760, 72.8777]} zoom={location ? 13 : 10} className="leaflet-map">
@@ -688,7 +698,11 @@ function Hospitals() {
                 {location && <Marker position={[location.lat, location.lng]} icon={userIcon}><Popup>Your current location</Popup></Marker>}
                 {filtered.map((item) => (
                   <Marker key={item.id} position={[item.lat, item.lng]} icon={hospitalIcon}>
-                    <Popup><strong>{item.name}</strong><br />{item.type}{item.phone ? <><br />{item.phone}</> : null}</Popup>
+                    <Popup>
+                      <strong>{item.name}</strong><br />{item.type}
+                      {item.address && <><br />{item.address}</>}
+                      {item.phone && <><br />{item.phone}</>}
+                    </Popup>
                   </Marker>
                 ))}
               </MapContainer>
@@ -701,6 +715,7 @@ function Hospitals() {
                   <div className="facility-card" key={item.id}>
                     <span className="facility-type">{item.type}</span>
                     <h3>{item.name}</h3>
+                    {item.address && <p>{item.address}</p>}
                     {distance !== null && <p>{distance.toFixed(1)} km away</p>}
                     {item.phone && <a href={`tel:${item.phone.replace(/[^+\d]/g, '')}`}>{item.phone}</a>}
                     <a className="button button-secondary" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}`}>Get Directions <ExternalLink size={15} /></a>
