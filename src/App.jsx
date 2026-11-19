@@ -31,8 +31,8 @@ function getGoogleMapsLink(lat, lng) {
   return `https://www.google.com/maps?q=${lat},${lng}`
 }
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null
 
 const kitIcon = L.divIcon({
   className: 'kit-marker',
@@ -288,6 +288,16 @@ function MapFocus({ kit }) {
   useEffect(() => {
     if (kit) map.flyTo([kit.lat, kit.lng], 18, { duration: 0.8 })
   }, [kit, map])
+  return null
+}
+
+function TrackingMapFocus({ latitude, longitude }) {
+  const map = useMap()
+  useEffect(() => {
+    if (latitude != null && longitude != null) {
+      map.panTo([latitude, longitude], { animate: true, duration: 0.5 })
+    }
+  }, [latitude, longitude, map])
   return null
 }
 
@@ -901,8 +911,8 @@ function SOSPage() {
       createdAt: now,
       updatedAt: now,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      latitude: position?.lat || null,
-      longitude: position?.lng || null,
+      latitude: position?.lat ?? null,
+      longitude: position?.lng ?? null,
       contactIds: selected,
     }
     const alerts = getStoredJson(ALERTS_KEY)
@@ -919,7 +929,7 @@ function SOSPage() {
         sharing_token: alert.token,
         expires_at: alert.expiresAt,
       })
-      if (alert.latitude && alert.longitude) {
+      if (alert.latitude != null && alert.longitude != null) {
         await supabase.from('emergency_locations').insert({
           alert_id: alert.id,
           latitude: alert.latitude,
@@ -1021,32 +1031,70 @@ function SOSPage() {
 
 function EmergencyTracking({ shared = false }) {
   const params = useParams()
-  const alerts = getStoredJson(ALERTS_KEY)
-  const alert = (shared
-    ? alerts.find((item) => item.token === params.token)
-    : alerts.find((item) => item.id === params.id))
-  const usableAlert = alert
-  const [latest, setLatest] = useState(usableAlert || null)
-  const [watchError, setWatchError] = useState('')
+  const usableAlert = useMemo(() => {
+    const alerts = getStoredJson(ALERTS_KEY)
+    return shared
+      ? alerts.find((item) => item.token === params.token)
+      : alerts.find((item) => item.id === params.id)
+  }, [shared, params.token, params.id])
+  const [latest, setLatest] = useState(shared && supabase ? null : usableAlert || null)
+  const [watchError, setWatchError] = useState(
+    shared && !usableAlert && !supabase
+      ? 'Live location sharing is unavailable because the app is not connected to Supabase.'
+      : ''
+  )
+  const [loadingShared, setLoadingShared] = useState(shared && !!supabase)
+  const [shareMessage, setShareMessage] = useState('')
   const watcher = useRef(null)
 
   useEffect(() => {
-    if (!shared || usableAlert) return
+    if (!shared) return
     if (!supabase) return
-    supabase.rpc('get_emergency_location', { p_token: params.token }).then(({ data }) => {
-      if (!data?.length) return
-      const row = data[0]
-      setLatest({
-        id: row.alert_id,
-        token: params.token,
-        name: row.person_name || 'AidLocate user',
-        sharingEnabled: true,
-        latitude: row.latitude,
-        longitude: row.longitude,
-        updatedAt: row.updated_at,
-      })
-    })
-  }, [shared, params.token, usableAlert])
+
+    let active = true
+    let refreshing = false
+    const refreshLocation = async () => {
+      if (refreshing) return
+      refreshing = true
+      try {
+        const { data, error } = await supabase.rpc('get_emergency_location', { p_token: params.token })
+        if (!active) return
+        if (error) {
+          setWatchError('Could not refresh the live location. Checking again shortly.')
+          return
+        }
+        if (!data?.length) {
+          setLatest(null)
+          setWatchError('This link is invalid, expired, or location sharing has ended.')
+          return
+        }
+        const row = data[0]
+        setLatest((current) => ({
+          ...current,
+          id: row.alert_id,
+          token: params.token,
+          name: row.person_name || 'AidLocate user',
+          sharingEnabled: true,
+          latitude: row.latitude,
+          longitude: row.longitude,
+          updatedAt: row.updated_at,
+        }))
+        setWatchError('')
+      } catch {
+        if (active) setWatchError('Could not refresh the live location. Check your connection; retrying shortly.')
+      } finally {
+        refreshing = false
+        if (active) setLoadingShared(false)
+      }
+    }
+
+    refreshLocation()
+    const intervalId = window.setInterval(refreshLocation, 5000)
+    return () => {
+      active = false
+      window.clearInterval(intervalId)
+    }
+  }, [shared, params.token])
 
   useEffect(() => {
     if (!usableAlert || shared || !usableAlert.sharingEnabled) return
@@ -1055,24 +1103,32 @@ function EmergencyTracking({ shared = false }) {
       return
     }
     watcher.current = navigator.geolocation.watchPosition(
-      ({ coords }) => {
+      async ({ coords }) => {
         const now = new Date().toISOString()
         const updated = { ...usableAlert, latitude: coords.latitude, longitude: coords.longitude, updatedAt: now, sharingEnabled: true }
         setLatest(updated)
         setStoredJson(ALERTS_KEY, getStoredJson(ALERTS_KEY).map((item) => item.id === usableAlert.id ? updated : item))
         if (supabase) {
-          supabase.from('emergency_locations').insert({
-            alert_id: usableAlert.id,
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            updated_at: now,
-          })
-          supabase.from('emergency_alerts').update({
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            sharing_enabled: true,
-            status: 'active',
-          }).eq('id', usableAlert.id)
+          try {
+            const [locationResult, alertResult] = await Promise.all([
+              supabase.from('emergency_locations').insert({
+                alert_id: usableAlert.id,
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                updated_at: now,
+              }),
+              supabase.from('emergency_alerts').update({
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                sharing_enabled: true,
+                status: 'active',
+              }).eq('id', usableAlert.id),
+            ])
+            if (locationResult.error || alertResult.error) throw locationResult.error || alertResult.error
+            setWatchError('')
+          } catch {
+            setWatchError('Location is updating on this device but could not sync to the shared link. Check your connection.')
+          }
         }
       },
       () => setWatchError('Live updates paused. Location permission or connectivity may be unavailable.'),
@@ -1082,6 +1138,20 @@ function EmergencyTracking({ shared = false }) {
       if (watcher.current !== null) navigator.geolocation.clearWatch(watcher.current)
     }
   }, [usableAlert, shared])
+
+  const copyShareLink = async () => {
+    const shareUrl = `${window.location.origin}/share/${latest.token}`
+    if (!navigator.clipboard?.writeText) {
+      setShareMessage('Clipboard access is unavailable. Open the link and copy it from the address bar.')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setShareMessage('Live-sharing link copied. Send it to your trusted contact.')
+    } catch {
+      setShareMessage('Could not copy the link. Open it and copy it from the address bar instead.')
+    }
+  }
 
   const stopSharing = () => {
     if (watcher.current !== null) navigator.geolocation.clearWatch(watcher.current)
@@ -1100,7 +1170,9 @@ function EmergencyTracking({ shared = false }) {
         body: {
           alertId: stopped.id,
           name: stopped.name,
-          locationUrl: stopped.latitude && stopped.longitude ? getGoogleMapsLink(stopped.latitude, stopped.longitude) : null,
+          locationUrl: stopped.latitude != null && stopped.longitude != null
+            ? getGoogleMapsLink(stopped.latitude, stopped.longitude)
+            : null,
           activatedAt: stopped.updatedAt,
           status: 'sharing-ended',
           contacts,
@@ -1109,30 +1181,51 @@ function EmergencyTracking({ shared = false }) {
     }
   }
 
+  const hasLocation = latest?.latitude != null && latest?.longitude != null
+
   if (!latest) return (
-    <PageShell eyebrow="Emergency Tracking" title="Sharing link unavailable" description="This emergency sharing link is invalid or has expired."><section className="section"><div className="container empty-state"><ShieldCheck size={38} /><h3>Unable to open emergency location</h3></div></section></PageShell>
+    <PageShell
+      eyebrow="Emergency Tracking"
+      title={loadingShared ? 'Loading live location' : 'Sharing link unavailable'}
+      description={loadingShared ? 'Connecting to the shared location...' : 'This emergency sharing link is invalid or has expired.'}
+    >
+      <section className="section"><div className="container empty-state"><ShieldCheck size={38} /><h3>{watchError || 'Unable to open emergency location'}</h3></div></section>
+    </PageShell>
   )
 
   return (
-    <PageShell eyebrow="Emergency Tracking" title={shared ? 'Emergency location update' : 'Your Emergency Location Is Being Shared'} description="Live updates depend on browser permission, internet connectivity and whether the browser remains active.">
+    <PageShell
+      eyebrow="Emergency Tracking"
+      title={shared ? 'Emergency location update' : 'Your Emergency Location Is Being Shared'}
+      description={shared
+        ? "This page checks for location updates every five seconds while the sender's browser and internet connection remain active."
+        : 'Live updates depend on browser permission, internet connectivity and whether the browser remains active.'}
+    >
       <section className="section"><div className="container tracking-layout">
         <div className="tracking-card">
           <div className="tracking-status"><span className={latest.sharingEnabled ? 'status-live' : 'status-ended'}>{latest.sharingEnabled ? 'Live sharing active' : 'Sharing stopped'}</span><Clock3 size={17} /></div>
           <h2>{latest.name}</h2>
           <dl className="detail-list">
             <div><dt>Emergency alert ID</dt><dd>{latest.id}</dd></div>
-            <div><dt>Latest location</dt><dd>{latest.latitude && latest.longitude ? `${latest.latitude.toFixed(5)}, ${latest.longitude.toFixed(5)}` : 'Location unavailable'}</dd></div>
+            <div><dt>Latest location</dt><dd>{hasLocation ? `${latest.latitude.toFixed(5)}, ${latest.longitude.toFixed(5)}` : 'Location unavailable'}</dd></div>
             <div><dt>Last update</dt><dd>{new Date(latest.updatedAt).toLocaleString()}</dd></div>
           </dl>
-          {latest.latitude && latest.longitude && <a className="button button-secondary" href={getGoogleMapsLink(latest.latitude, latest.longitude)} target="_blank" rel="noreferrer"><MapPin size={17} /> Open in Google Maps</a>}
+          {hasLocation && <a className="button button-secondary" href={getGoogleMapsLink(latest.latitude, latest.longitude)} target="_blank" rel="noreferrer"><MapPin size={17} /> Open in Google Maps</a>}
           {!shared && latest.sharingEnabled && <button className="button button-danger stop-sharing" onClick={stopSharing}><StopCircle size={18} /> STOP LOCATION SHARING</button>}
-          {!shared && <a className="share-link" href={`/share/${latest.token}`}><Share2 size={16} /> Authorized contact link</a>}
+          {!shared && latest.sharingEnabled && (
+            <>
+              <button className="button button-secondary" onClick={copyShareLink}><Share2 size={16} /> Copy live-sharing link</button>
+              <a className="share-link" href={`/share/${latest.token}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open live-sharing link</a>
+              {shareMessage && <div className="alert" role="status">{shareMessage}</div>}
+            </>
+          )}
           {watchError && <div className="alert error">{watchError}</div>}
         </div>
         <div className="tracking-map">
-          {latest.latitude && latest.longitude ? (
+          {hasLocation ? (
             <MapContainer center={[latest.latitude, latest.longitude]} zoom={16} className="leaflet-map">
               <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <TrackingMapFocus latitude={latest.latitude} longitude={latest.longitude} />
               <Marker position={[latest.latitude, latest.longitude]} icon={sosIcon}><Popup>{latest.name}</Popup></Marker>
             </MapContainer>
           ) : <div className="empty-state"><MapPin size={38} /><h3>Location not available</h3><p>Wait for browser location permission or internet connectivity.</p></div>}
