@@ -937,7 +937,7 @@ function AuthPage() {
       }
       window.dispatchEvent(new Event('aidlocate-auth'))
       navigate('/profile')
-    } catch {
+    } catch (err) {
       setError(err.message || 'Authentication failed.')
     }
   }
