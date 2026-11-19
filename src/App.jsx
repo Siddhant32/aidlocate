@@ -30,8 +30,10 @@ function getGeolocationErrorMessage(error) {
   return 'Your current location is unavailable.'
 }
 function makeToken() {
-  if (crypto?.randomUUID) return crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '')
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`
+  if (!globalThis.crypto?.getRandomValues) throw new Error('Secure random number generation is unavailable.')
+  const bytes = new Uint8Array(32)
+  globalThis.crypto.getRandomValues(bytes)
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 function getGoogleMapsLink(lat, lng) {
   return `https://www.google.com/maps?q=${lat},${lng}`
@@ -473,7 +475,10 @@ function QRScannerPage() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [scanning, setScanning] = useState(false)
+  const [starting, setStarting] = useState(false)
   const scannerRef = useRef(null)
+  const scannerStartedRef = useRef(false)
+  const decodeHandledRef = useRef(false)
   const navigate = useNavigate()
 
   const parseQr = (text) => {
@@ -483,38 +488,97 @@ function QRScannerPage() {
   }
 
   const stopScanner = async () => {
-    if (scannerRef.current) {
-      try { await scannerRef.current.stop(); await scannerRef.current.clear() } catch {}
-      scannerRef.current = null
+    const scanner = scannerRef.current
+    if (!scanner) {
+      setScanning(false)
+      return
     }
+
+    let cleanupError = null
+    if (scannerStartedRef.current) {
+      try {
+        await scanner.stop()
+      } catch (stopError) {
+        cleanupError = stopError
+      }
+    }
+
+    scannerStartedRef.current = false
+    try {
+      scanner.clear()
+    } catch (clearError) {
+      cleanupError = cleanupError || clearError
+    }
+    scannerRef.current = null
     setScanning(false)
+    if (cleanupError) {
+      console.error('Could not stop the QR scanner cleanly.', cleanupError)
+      setError('The camera could not be stopped cleanly. Close this page to release it.')
+    }
   }
 
   const startScanner = async () => {
+    if (scannerRef.current) return
     setError('')
     setResult(null)
+    decodeHandledRef.current = false
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Camera access is not available in this browser. Use the manual kit ID option below.')
+      return
+    }
+
+    const scanner = new Html5Qrcode('qr-reader')
+    scannerRef.current = scanner
+    setScanning(true)
+    setStarting(true)
+
     try {
-      const scanner = new Html5Qrcode('qr-reader')
-      scannerRef.current = scanner
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      scannerStartedRef.current = true
       await scanner.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decoded) => {
+        async (decoded) => {
+          if (decodeHandledRef.current) return
+          decodeHandledRef.current = true
           const kit = parseQr(decoded)
-          stopScanner()
+          await stopScanner()
           if (kit) setResult(kit)
           else setError('QR code found, but it does not match a registered AidLocate kit.')
         },
         () => {}
       )
-      setScanning(true)
-    } catch {
+      scannerStartedRef.current = scannerRef.current === scanner
+    } catch (startError) {
+      if (scannerRef.current !== scanner) return
+      console.error('Could not start the QR scanner.', startError)
+      scannerStartedRef.current = false
+      try {
+        scanner.clear()
+      } catch (clearError) {
+        console.error('Could not clear the failed QR scanner.', clearError)
+      }
+      if (scannerRef.current === scanner) scannerRef.current = null
       setScanning(false)
       setError('Camera unavailable or permission denied. Use the manual kit ID option below.')
+    } finally {
+      setStarting(false)
     }
   }
 
-  useEffect(() => () => { if (scannerRef.current) scannerRef.current.stop().catch(() => {}) }, [])
+  useEffect(() => () => {
+    const scanner = scannerRef.current
+    if (!scanner) return
+    if (scannerStartedRef.current) {
+      scanner.stop()
+        .then(() => scanner.clear())
+        .catch((stopError) => {
+          console.error('Could not stop the QR scanner while leaving the page.', stopError)
+        })
+    } else {
+      scanner.clear()
+    }
+  }, [])
 
   const submitManual = (event) => {
     event.preventDefault()
@@ -533,7 +597,7 @@ function QRScannerPage() {
             {!scanning && <div className="scan-placeholder"><div className="scan-frame"><Camera size={38} /></div><p>Position the QR code inside the frame</p></div>}
             <div className="scanner-actions">
               <button className="button button-primary" onClick={startScanner} disabled={scanning}><Camera size={18} /> Start Scanner</button>
-              <button className="button button-secondary" onClick={stopScanner} disabled={!scanning}><X size={18} /> Stop Scanner</button>
+              <button className="button button-secondary" onClick={stopScanner} disabled={!scanning || starting}><X size={18} /> Stop Scanner</button>
             </div>
             {error && <div className="alert error"><X size={17} /> {error}</div>}
             <form className="manual-form" onSubmit={submitManual}>
@@ -1005,10 +1069,23 @@ function SOSPage() {
       })
     } catch { position = null }
 
+    let shareToken
+    let updateToken
+    try {
+      shareToken = makeToken()
+      updateToken = makeToken()
+    } catch (tokenError) {
+      console.error('Could not generate secure emergency-sharing tokens.', tokenError)
+      setStatus('Secure live sharing is unavailable in this browser. Please use another device or contact emergency services directly.')
+      setActivating(false)
+      return
+    }
+
     const now = new Date().toISOString()
     const alert = {
-      id: `SOS-${makeToken().slice(0, 10).toUpperCase()}`,
-      token: makeToken(),
+      id: `SOS-${shareToken.slice(0, 10).toUpperCase()}`,
+      token: shareToken,
+      updateToken,
       userId: user?.id || 'local-user',
       name: user?.fullName || 'AidLocate user',
       status: 'active',
@@ -1020,28 +1097,28 @@ function SOSPage() {
       longitude: position?.lng ?? null,
       contactIds: selected,
     }
-    const alerts = getStoredJson(ALERTS_KEY)
-    setStoredJson(ALERTS_KEY, [alert, ...alerts])
 
-    if (supabase && user?.id) {
-      await supabase.from('emergency_alerts').insert({
-        id: alert.id,
-        user_id: user.id,
-        status: 'active',
-        latitude: alert.latitude,
-        longitude: alert.longitude,
-        sharing_enabled: true,
-        sharing_token: alert.token,
-        expires_at: alert.expiresAt,
-      })
-      if (alert.latitude != null && alert.longitude != null) {
-        await supabase.from('emergency_locations').insert({
-          alert_id: alert.id,
-          latitude: alert.latitude,
-          longitude: alert.longitude,
+    if (supabase) {
+      try {
+        const { error: shareError } = await supabase.rpc('create_emergency_share', {
+          p_alert_id: alert.id,
+          p_share_token: alert.token,
+          p_update_token: alert.updateToken,
+          p_latitude: alert.latitude,
+          p_longitude: alert.longitude,
+          p_expires_at: alert.expiresAt,
         })
+        if (shareError) throw shareError
+      } catch (shareError) {
+        console.error('Could not create the emergency share.', shareError)
+        setStatus('Live sharing could not be started. Check the Supabase migration and try again; contact emergency services directly if needed.')
+        setActivating(false)
+        return
       }
     }
+
+    const alerts = getStoredJson(ALERTS_KEY)
+    setStoredJson(ALERTS_KEY, [alert, ...alerts])
 
     const chosen = contacts.filter((item) => selected.includes(item.id))
     const notificationUrl = import.meta.env.VITE_NOTIFICATION_API_URL
@@ -1215,23 +1292,15 @@ function EmergencyTracking({ shared = false }) {
         setStoredJson(ALERTS_KEY, getStoredJson(ALERTS_KEY).map((item) => item.id === usableAlert.id ? updated : item))
         if (supabase) {
           try {
-            const [locationResult, alertResult] = await Promise.all([
-              supabase.from('emergency_locations').insert({
-                alert_id: usableAlert.id,
-                latitude: coords.latitude,
-                longitude: coords.longitude,
-                updated_at: now,
-              }),
-              supabase.from('emergency_alerts').update({
-                latitude: coords.latitude,
-                longitude: coords.longitude,
-                sharing_enabled: true,
-                status: 'active',
-              }).eq('id', usableAlert.id),
-            ])
-            if (locationResult.error || alertResult.error) throw locationResult.error || alertResult.error
+            const { error: updateError } = await supabase.rpc('update_emergency_location', {
+              p_update_token: usableAlert.updateToken,
+              p_latitude: coords.latitude,
+              p_longitude: coords.longitude,
+            })
+            if (updateError) throw updateError
             setWatchError('')
-          } catch {
+          } catch (updateError) {
+            console.error('Could not sync the emergency location.', updateError)
             setWatchError('Location is updating on this device but could not sync to the shared link. Check your connection.')
           }
         }
@@ -1258,31 +1327,43 @@ function EmergencyTracking({ shared = false }) {
     }
   }
 
-  const stopSharing = () => {
+  const stopSharing = async () => {
     if (watcher.current !== null) navigator.geolocation.clearWatch(watcher.current)
+    watcher.current = null
     const stopped = { ...latest, sharingEnabled: false, status: 'sharing-ended', updatedAt: new Date().toISOString() }
     setLatest(stopped)
     setStoredJson(ALERTS_KEY, getStoredJson(ALERTS_KEY).map((item) => item.id === stopped.id ? stopped : item))
     if (supabase) {
-      supabase.from('emergency_alerts').update({
-        sharing_enabled: false,
-        status: 'sharing-ended',
-      }).eq('id', stopped.id)
+      try {
+        const { error: stopError } = await supabase.rpc('stop_emergency_share', {
+          p_update_token: stopped.updateToken,
+        })
+        if (stopError) throw stopError
+      } catch (stopError) {
+        console.error('Could not stop the emergency share on the server.', stopError)
+        setWatchError('Location updates stopped on this device, but the shared link may show the last location until it expires.')
+      }
     }
     const contacts = getStoredJson(CONTACTS_KEY).filter((item) => stopped.contactIds?.includes(item.id))
     if (supabase && contacts.length) {
-      supabase.functions.invoke('send-sos', {
-        body: {
-          alertId: stopped.id,
-          name: stopped.name,
-          locationUrl: stopped.latitude != null && stopped.longitude != null
-            ? getGoogleMapsLink(stopped.latitude, stopped.longitude)
-            : null,
-          activatedAt: stopped.updatedAt,
-          status: 'sharing-ended',
-          contacts,
-        },
-      })
+      try {
+        const { error: notifyError } = await supabase.functions.invoke('send-sos', {
+          body: {
+            alertId: stopped.id,
+            name: stopped.name,
+            locationUrl: stopped.latitude != null && stopped.longitude != null
+              ? getGoogleMapsLink(stopped.latitude, stopped.longitude)
+              : null,
+            activatedAt: stopped.updatedAt,
+            status: 'sharing-ended',
+            contacts,
+          },
+        })
+        if (notifyError) throw notifyError
+      } catch (notifyError) {
+        console.error('Could not notify emergency contacts that sharing ended.', notifyError)
+        setShareMessage('Sharing stopped, but the notification backend could not confirm that contacts were notified.')
+      }
     }
   }
 
@@ -1317,12 +1398,15 @@ function EmergencyTracking({ shared = false }) {
           </dl>
           {hasLocation && <a className="button button-secondary" href={getGoogleMapsLink(latest.latitude, latest.longitude)} target="_blank" rel="noreferrer"><MapPin size={17} /> Open in Google Maps</a>}
           {!shared && latest.sharingEnabled && <button className="button button-danger stop-sharing" onClick={stopSharing}><StopCircle size={18} /> STOP LOCATION SHARING</button>}
-          {!shared && latest.sharingEnabled && (
+          {!shared && latest.sharingEnabled && supabase && (
             <>
               <button className="button button-secondary" onClick={copyShareLink}><Share2 size={16} /> Copy live-sharing link</button>
               <a className="share-link" href={`/share/${latest.token}`} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Open live-sharing link</a>
               {shareMessage && <div className="alert" role="status">{shareMessage}</div>}
             </>
+          )}
+          {!shared && latest.sharingEnabled && !supabase && (
+            <div className="alert error">Cross-device live sharing requires a Supabase connection. Location is only available on this device.</div>
           )}
           {watchError && <div className="alert error">{watchError}</div>}
         </div>

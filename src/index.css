@@ -12,10 +12,11 @@
   --text: #111;
   --muted: #4a4a4a;
   --border: #ccc;
-  --green: #147a36;
-  --green-dark: #0c5f29;
-  --green-light: #a5e3b4;
-  --green-soft: #e8f4eb;
+  --green: #a3e635;
+  --green-dark: #365314;
+  --green-hover: #84cc16;
+  --green-light: #a3e635;
+  --green-soft: #ecfccb;
   --red: #c62828;
   --red-dark: #a61f24;
   --red-soft: #fde8e8;
@@ -45,12 +46,19 @@ button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-underline-offset: 3px; }
 img, svg { display: block; }
 button { color: inherit; }
-::selection { color: var(--surface); background: var(--green); }
+::selection { color: var(--ink); background: var(--green); }
 input, textarea { caret-color: var(--green-dark); }
 
 :focus-visible {
-  outline: 3px solid var(--green);
+  outline: 3px solid var(--green-dark);
   outline-offset: 3px;
+}
+
+.site-header :focus-visible,
+.hero-section :focus-visible,
+.cta-card :focus-visible,
+.footer :focus-visible {
+  outline-color: var(--green-light);
 }
 
 @media (prefers-reduced-motion: reduce) {

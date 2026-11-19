@@ -29,9 +29,10 @@ VITE_EMERGENCY_NUMBER=112
 ## Deploy with Supabase and Vercel
 
 1. Create a Supabase project and run `supabase/schema.sql` once in its SQL Editor.
-2. In Supabase **Authentication → URL Configuration**, set the Site URL to your deployed Vercel URL and add that URL (and `http://localhost:5173` for local development) to the Redirect URLs.
-3. Import this GitHub repository into Vercel. Use the Vite framework preset, `npm run build` as the build command, and `dist` as the output directory. The included `vercel.json` sends app routes to `index.html`.
-4. In Vercel **Project Settings → Environment Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the environments you deploy (Production, Preview, and/or Development). These are browser-visible client settings; never put a secret key or provider credential in a `VITE_` variable. Redeploy after changing environment variables.
+2. Run `supabase/migrations/20261119193700_enable_anonymous_location_sharing.sql` in the SQL Editor. This enables cross-device live sharing without requiring an account. Existing projects only need to run this migration.
+3. In Supabase **Authentication → URL Configuration**, set the Site URL to your deployed Vercel URL and add that URL (and `http://localhost:5173` for local development) to the Redirect URLs.
+4. Import this GitHub repository into Vercel. Use the Vite framework preset, `npm run build` as the build command, and `dist` as the output directory. The included `vercel.json` sends app routes to `index.html`.
+5. In Vercel **Project Settings → Environment Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the environments you deploy (Production, Preview, and/or Development). These are browser-visible client settings; never put a secret key or provider credential in a `VITE_` variable. Redeploy after changing environment variables.
 
 For local development, use `.env.local` with the same two Supabase values. `.env` and `.env.*` files are ignored by Git; `.env.example` is safe to commit.
 

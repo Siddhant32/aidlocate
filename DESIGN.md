@@ -9,10 +9,11 @@ colors:
   text: "#111111"
   muted: "#4a4a4a"
   border: "#cccccc"
-  green: "#147a36"
-  green-dark: "#0c5f29"
-  green-light: "#a5e3b4"
-  green-soft: "#e8f4eb"
+  green: "#a3e635"
+  green-dark: "#365314"
+  green-hover: "#84cc16"
+  green-light: "#a3e635"
+  green-soft: "#ecfccb"
   red: "#c62828"
   red-dark: "#a61f24"
   red-soft: "#fde8e8"
@@ -50,12 +51,12 @@ spacing:
 components:
   button-primary:
     backgroundColor: "{colors.green}"
-    textColor: "{colors.surface}"
+    textColor: "{colors.ink}"
     typography: "{typography.label}"
     rounded: "{rounded.sm}"
     padding: "10px 16px"
   button-primary-hover:
-    backgroundColor: "{colors.green-dark}"
+    backgroundColor: "{colors.green-hover}"
   button-secondary:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -76,24 +77,25 @@ components:
 
 **Creative North Star: "Mumbai Platform Display"**
 
-AidLocate borrows the direct hierarchy of a contemporary Mumbai suburban railway display: strong condensed headlines, aligned information rows, a black-and-white field, and deliberate green and red signals. The reference is an information system, not a station replica; the interface uses no invented routes or nostalgic decoration.
+AidLocate borrows the direct hierarchy of a contemporary Mumbai suburban railway display: strong condensed headlines, aligned information rows, a black-and-white field, and deliberate lime and red signals. The reference is an information system, not a station replica; the interface uses no invented routes or nostalgic decoration.
 
-The interface is an operational tool for people who may be using a phone in a public place and under time pressure. Keep actions easy to scan, make location data legible, and make uncertainty visible. Green identifies actions and selected states; red is reserved for urgent and error states. Kit coordinates are sample records, so their labels and markers stay monochrome and never suggest availability.
+The interface is an operational tool for people who may be using a phone in a public place and under time pressure. Keep actions easy to scan, make location data legible, and make uncertainty visible. Bright lime identifies actions and selected states; red is reserved for urgent and error states. Kit coordinates are sample records, so their labels and markers stay monochrome and never suggest availability.
 
 **Key Characteristics:**
 - High-contrast, code-led hierarchy with Barlow Condensed display type.
 - Flat white surfaces framed by fine dividers rather than stacked rounded cards.
-- Green for primary actions and selected states; red for urgent and error states.
+- Bright lime for primary actions and selected states; red for urgent and error states.
 - Compact navigation and aligned destination-style result rows.
 
 ## Colors
 
-Black and white establish the field; green and red are reserved for actions and urgent feedback.
+Black and white establish the field; bright lime and red are reserved for actions and urgent feedback.
 
 ### Primary
-- **AidLocate Green** (#147a36): Primary action fill, active navigation, and selected states.
-- **Deep Green** (#0c5f29): Hover, focus, and secondary links requiring stronger contrast.
-- **Soft Green** (#e8f4eb): Selected rows and non-urgent success feedback.
+- **AidLocate Lime** (#a3e635): Primary action fill and high-visibility accents.
+- **Lime Hover** (#84cc16): Primary action hover state.
+- **Deep Lime** (#365314): Text links, focus rings, and borders requiring stronger contrast.
+- **Soft Lime** (#ecfccb): Selected rows and non-urgent success feedback.
 
 ### Secondary
 - **Emergency Red** (#c62828): Reserved for SOS actions, urgent warnings, and emergency map markers.
@@ -108,7 +110,7 @@ Black and white establish the field; green and red are reserved for actions and 
 - **Divider** (#cccccc): Row separators and panel borders.
 - **On-Black Muted** (#e6e6e6): Supporting copy on dark surfaces.
 
-**The Sample-Is-Not-Status Rule.** Green marks actions and selected states, red marks urgent or error states, and monochrome labels identify unverified sample records. No color implies that a first-aid kit is confirmed available.
+**The Sample-Is-Not-Status Rule.** Lime marks actions and selected states, red marks urgent or error states, and monochrome labels identify unverified sample records. No color implies that a first-aid kit is confirmed available.
 
 ## Typography
 
@@ -147,20 +149,20 @@ Panels, buttons, and inputs are square-edged or use a restrained 2px corner. Row
 
 ### Buttons
 - **Shape:** Square-edged with a slight 2px corner on the brand mark; controls use 0–2px corners.
-- **Primary:** Green fill with white text, 10px 16px padding, and compact semibold labels.
-- **Hover / Focus:** A small lift on hover; green deepens. Keyboard focus uses a 3px dark-green outline with 3px offset.
+- **Primary:** Bright lime fill with black text, 10px 16px padding, and compact semibold labels.
+- **Hover / Focus:** A small lift on hover; lime deepens. Keyboard focus uses a 3px deep-lime outline with 3px offset.
 - **Secondary:** White surface with black text and a visible dark-neutral border.
 - **Danger:** Emergency red with white text, reserved for SOS and destructive actions.
 
 ### Chips
-- **Style:** Sample-record labels use black text and monochrome markers; no green verified/available state.
-- **State:** Selected result rows receive a pale green wash and border; unselected rows remain white.
+- **Style:** Sample-record labels use black text and monochrome markers; no lime verified/available state.
+- **State:** Selected result rows receive a pale lime wash and deep-lime border; unselected rows remain white.
 
 ### Cards / Containers
 - **Corner Style:** Flat or 2px corners; no rounded-card grid.
 - **Background:** White surfaces for results and forms, a white page canvas, and black title and hero bands.
 - **Shadow Strategy:** No resting card shadow; use borders and tonal layering. Map controls are the exception.
-- **Border:** Fine neutral divider; selected result rows use a stronger green border.
+- **Border:** Fine neutral divider; selected result rows use a stronger deep-lime border.
 - **Internal Padding:** 12–24px for working panels; compact rows use 8–16px.
 
 ### Inputs / Fields
@@ -169,7 +171,7 @@ Panels, buttons, and inputs are square-edged or use a restrained 2px corner. Row
 - **Error / Disabled:** Errors use dark red on pale red; disabled controls retain their shape and reduce opacity.
 
 ### Navigation
-- **Style:** Black bar, compact IBM Plex Sans links, green active underline, and a high-contrast green account action. On mobile, links move into a dark, vertically stacked menu with an account action.
+- **Style:** Black bar, compact IBM Plex Sans links, bright-lime active underline, and a high-contrast lime account action with black text. On mobile, links move into a dark, vertically stacked menu with an account action.
 
 ### Destination Result Row
 The signature first-aid row pairs a small sample label and tabular kit ID with a prominent place name, floor/location details, distance, and explicit map/details/directions actions. Selecting it highlights the row and recenters the adjacent map. Map markers and legend call out that coordinates are unverified samples.
@@ -183,7 +185,7 @@ The signature first-aid row pairs a small sample label and tabular kit ID with a
 - **Do** label sample coordinates directly wherever kit results or markers appear.
 
 ### Don't:
-- **Don't** use green or red to imply a kit is stocked, verified, or available.
+- **Don't** use lime or red to imply a kit is stocked, verified, or available.
 - **Don't** invent real transit routes, locations, facility claims, or delivery states.
 - **Don't** rebuild pages from repeated rounded icon cards or decorative gradients.
 - **Don't** hide the sample-data caveat below the map or result list.
