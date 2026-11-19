@@ -23,6 +23,12 @@ function getStoredJson(key, fallback = []) {
 }
 function setStoredJson(key, value) { localStorage.setItem(key, JSON.stringify(value)) }
 function getAuthUser() { return getStoredJson(AUTH_KEY, null) }
+function getGeolocationErrorMessage(error) {
+  if (error.code === 1) return 'Location permission was denied.'
+  if (error.code === 2) return 'Your current location could not be determined.'
+  if (error.code === 3) return 'The location request timed out.'
+  return 'Your current location is unavailable.'
+}
 function makeToken() {
   if (crypto?.randomUUID) return crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', '')
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`
@@ -218,6 +224,7 @@ function Locator() {
   const [category, setCategory] = useState('All Categories')
   const [position, setPosition] = useState(null)
   const [locationError, setLocationError] = useState('')
+  const [isLocating, setIsLocating] = useState(false)
   const categories = ['All Categories', ...new Set(kits.map((kit) => kit.category))]
   const filtered = useMemo(() => kits.filter((kit) => {
     const matchesCategory = category === 'All Categories' || kit.category === category
@@ -240,11 +247,22 @@ function Locator() {
       setLocationError('Location services are unavailable. Search manually instead.')
       return
     }
+    setIsLocating(true)
     navigator.geolocation.getCurrentPosition(
-      (current) => setPosition(current),
-      () => setLocationError('Location permission was denied. Manual search is still available.')
+      (current) => {
+        setPosition(current)
+        setIsLocating(false)
+      },
+      (error) => {
+        setLocationError(`${getGeolocationErrorMessage(error)} Manual search is still available.`)
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     )
   }
+  const nearbyKits = position
+    ? [...filtered].sort((left, right) => (distanceTo(left) ?? Infinity) - (distanceTo(right) ?? Infinity))
+    : filtered
 
   return (
     <PageShell eyebrow="Universal Kit Locator" title="Find Your Nearest First Aid Kit" description="Search for a first aid kit by city, building, institution or public place.">
@@ -263,11 +281,11 @@ function Locator() {
               </select>
             </label>
           </div>
-          <div className="results-heading"><h2>{filtered.length} {filtered.length === 1 ? 'kit' : 'kits'} found</h2><button className="button button-secondary" onClick={useCurrentLocation}><LocateFixed size={16} /> Use My Location</button></div>
+          <div className="results-heading"><h2>{filtered.length} {filtered.length === 1 ? 'kit' : 'kits'} found</h2><button className="button button-secondary" onClick={useCurrentLocation} disabled={isLocating}><LocateFixed size={16} /> {isLocating ? 'Locating...' : 'Use My Location'}</button></div>
           {locationError && <div className="alert error"><X size={17} /> {locationError}</div>}
-          {position && <div className="alert" style={{ color: '#176846', background: '#edf8f3' }}><LocateFixed size={17} /> Using your current location for available distance estimates.</div>}
+          {position && <div className="alert" style={{ color: '#176846', background: '#edf8f3' }}><LocateFixed size={17} /> Kits are sorted by distance from your current location.</div>}
           {filtered.length ? (
-            <div className="kit-grid">{filtered.map((kit) => (
+            <div className="kit-grid">{nearbyKits.map((kit) => (
               <div key={kit.id}>
                 <KitCard kit={kit} />
                 {distanceTo(kit) !== null && <div className="distance-label">{distanceTo(kit).toFixed(1)} km away</div>}
@@ -291,6 +309,14 @@ function MapFocus({ kit }) {
   return null
 }
 
+function UserMapFocus({ position }) {
+  const map = useMap()
+  useEffect(() => {
+    if (position) map.flyTo([position.lat, position.lng], 15, { duration: 0.8 })
+  }, [position, map])
+  return null
+}
+
 function TrackingMapFocus({ latitude, longitude }) {
   const map = useMap()
   useEffect(() => {
@@ -310,6 +336,7 @@ function CampusMap() {
   const [category, setCategory] = useState('All Categories')
   const [userPosition, setUserPosition] = useState(null)
   const [locationError, setLocationError] = useState('')
+  const [isLocating, setIsLocating] = useState(false)
   const categories = ['All Categories', ...new Set(kits.map((kit) => kit.category))]
   const list = kits.filter((kit) => {
     const matchesCategory = category === 'All Categories' || kit.category === category
@@ -327,9 +354,17 @@ function CampusMap() {
       setLocationError('Geolocation is unavailable in this browser.')
       return
     }
+    setIsLocating(true)
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => setUserPosition({ lat: coords.latitude, lng: coords.longitude }),
-      () => setLocationError('Location permission denied. You can still search and select map locations manually.')
+      ({ coords }) => {
+        setUserPosition({ lat: coords.latitude, lng: coords.longitude })
+        setIsLocating(false)
+      },
+      (error) => {
+        setLocationError(`${getGeolocationErrorMessage(error)} You can still search and select map locations manually.`)
+        setIsLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     )
   }
 
@@ -339,7 +374,7 @@ function CampusMap() {
         <div className="container">
           <div className="demo-notice"><LocateFixed size={16} /> Sample demonstration locations — not verified real first aid kit locations.</div>
           <div className="map-toolbar">
-            <button className="button button-secondary" onClick={locateUser}><LocateFixed size={17} /> Use My Location</button>
+            <button className="button button-secondary" onClick={locateUser} disabled={isLocating}><LocateFixed size={17} /> {isLocating ? 'Locating...' : 'Use My Location'}</button>
             {locationError && <span className="map-location-error">{locationError}</span>}
           </div>
           <div className="map-layout">
@@ -347,6 +382,7 @@ function CampusMap() {
               <MapContainer center={[19.0760, 72.8777]} zoom={8} scrollWheelZoom={true} className="leaflet-map">
                 <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapFocus kit={selected} />
+                <UserMapFocus position={userPosition} />
                 {userPosition && <Marker position={[userPosition.lat, userPosition.lng]} icon={userIcon}><Popup>Your current location</Popup></Marker>}
                 {list.map((kit) => (
                   <Marker key={kit.id} position={[kit.lat, kit.lng]} icon={kitIcon} eventHandlers={{ click: () => setSelected(kit) }}>
